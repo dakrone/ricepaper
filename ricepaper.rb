@@ -4,96 +4,82 @@
 # Also works as a library in a pinch
 
 require 'rubygems'
-require 'restclient'
+require 'rest_client'
+require 'optparse'
 
 # Encapsulation class
-class RicePaper
-  attr_accessor :username, :password
-  attr_reader :error
 
-  def initialize(username, password)
+class RicePaper
+
+  attr_accessor :username, :password, :apiurl
+  attr_reader   :error
+
+  def initialize(username, password, apiurl = "https://www.instapaper.com/api/")
     @username = username
     @password = password
+    @apiurl = apiurl
     @error = ""
   end
 
-  def authenticate
-    RestClient.post "https://www.instapaper.com/api/authenticate", :username => @username, :password => @password
-  rescue RestClient::RequestFailed
-    e = $!.to_s
-    e =~ /(\d+)/
-      result = $1.to_s
+  # Handle Errors - sets the error code appropriately
+  # so that it can be reported
+  def handle_error(err)
+    result = /(\d+)/.match(err.to_s)[1]
     @error = case result
-               when "400" : "Bad Request"
-               when "403" : "Invalid username or password"
-               when "500" : "The service encountered an error. Please try again later."
-               else "An unknown error occured"
-             end
+                when "400" : "Bad Request"
+                when "403" : "Invalid username of password"
+                when "500" : "There was a server error. Please try again later."
+                else "An unknown error occured"
+              end
+  end
+
+  # Authenticate with instapaper, returning true if auth
+  # was successful, false otherwise
+  def authenticate
+    RestClient.post @apiurl + "authenticate", 
+      :username => @username, 
+      :password => @password
+  rescue RestClient::RequestFailed
+    handle_error($!)
     return false
   end
 
-  def add(url=nil, title=nil)
-    return if url.nil?
-    result = ""
-    @error = ""
-    if title.nil?
-      result = RestClient.post "https://www.instapaper.com/api/add", :username => @username,
-        :password => @password,
-        :url => url,
-        :"auto-title" => 1
-    else
-      result = RestClient.post "https://www.instapaper.com/api/add", :username => @username,
-        :password => @password,
-        :url => url,
-        :title => title
-    end
+  # Add a url to instapaper, given a url and an optional
+  # title; if no title is given, auto-title at instapaper
+  def add(url, title=nil)
+    result = RestClient.post @apiurl + "add",
+      :username     => @username,
+      :password     => @password,
+      :url          => url,
+      :title        => title,
+      :"auto-title" => title.nil? ? "1" : "0"
   rescue RestClient::RequestFailed
-    # Convert an exception to (hopefully), a result we can put in 'error'
-    e = $!.to_s
-    e =~ /(\d+)/
-      result = $1.to_s
-    @error = case result
-             when "400" : "Bad Request"
-             when "403" : "Invalid username or password"
-             when "500" : "The service encountered an error. Please try again later."
-             else "An unknown error occured"
-             end
+    handle_error($!)
     return false
   end
 end
 
 # Only run CLI if actually running the script instead of requiring it.
 if __FILE__ == $0
-  # Parsing command-line options
-  require 'optparse'
 
   opthash = Hash.new
   options = OptionParser.new do |opts|
-    opts.banner = "Usage: #{$0} [options] \"<url>\" [\"<url>\" \"<url>\" ...]"
-    opts.on("-u", "--username [USER]", "Username") do |opt|
-      opthash['username'] = opt
-    end
-    opts.on("-p", "--password [PASS]", "Password") do |opt|
-      opthash['password'] = opt
-    end
-    opts.on("-a", "--authenticate", "Only attempt to authenticate to Instapaper") do |opt|
-      opthash['authenticate'] = opt
-    end
-    opts.on("-t", "--title [TITLE]", "Optional title for instantpaper entry") do |opt|
-      opthash['title'] = opt
-    end
+    opts.banner = %q|Usage: #{$0} [options] "<url>" ["<url>" "<url>" ...]|
+    opts.on("-u", "--username [USER]", "Username") { |opt| opthash['username'] = opt }
+    opts.on("-p", "--password [PASS]", "Password") { |opt| opthash['password'] = opt }
+    opts.on("-a", "--authenticate", "Only attempt to authenticate to Instapaper") { |opt| opthash['authenticate'] = opt }
+    opts.on("-t", "--title [TITLE]", "Optional title for instantpaper entry") { |opt| opthash['title'] = opt }
   end
 
   options.parse!(ARGV)
   rp = RicePaper.new(opthash['username'],opthash['password'])
 
   if opthash['authenticate']
-      print "Authenticating..."
+      print "Authenticating... "
       result = rp.authenticate
+
       puts result ? "Successful." : "Failed."
-      if !result
-        puts "Error: #{rp.error}"
-      end
+      puts "Error: #{rp.error}" unless result
       exit(0)
   end
 
@@ -102,16 +88,10 @@ if __FILE__ == $0
   end
 
   ARGV.each do |url|
-    if opthash['title']
-      print "Submitting '#{url}' with title '#{opthash['title']}'..."
-      result = rp.add(url,opthash['title'])
-    else
-      print "Submitting '#{url}'..."
-      result = rp.add(url)
-    end
+    print "Submitting '#{url}' #{opthash['title'].nil? ? "" : "with title '#{opthash['title']}'"} ... "
+    result = rp.add(url,opthash['title'])
+
     puts result ? "Successful." : "Failed."
-    if !result
-      puts "Error: #{rp.error}"
-    end
+    puts "Error: #{rp.error}" unless result
   end
 end
