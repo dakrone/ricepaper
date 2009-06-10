@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+#
+# CLI interface to adding articles to your instantpaper account
+# by Matthew Lee Hinman (http://writequit.org)
+
+require 'ricepaper'
+require 'optparse'
+
+
+opthash = Hash.new
+options = OptionParser.new do |opts|
+  opts.banner = %q|Usage: #{$0} [options] "<url>" ["<url>" "<url>" ...]|
+  opts.on("-u", "--username [USER]", "Username") { |opt| opthash['username'] = opt }
+  opts.on("-p", "--password [PASS]", "Password") { |opt| opthash['password'] = opt }
+  opts.on("-a", "--authenticate", "Only attempt to authenticate to Instapaper") { |opt| opthash['authenticate'] = opt }
+  opts.on("-t", "--title [TITLE]", "Optional title for instantpaper entry") { |opt| opthash['title'] = opt }
+end
+
+options.parse!(ARGV)
+rp = RicePaper.new(opthash['username'],opthash['password'])
+
+if opthash['authenticate']
+  print "Authenticating... "
+  result = rp.authenticate
+
+  puts result ? "Successful." : "Failed."
+  puts "Error: #{rp.error}" unless result
+  exit(0)
+end
+
+if ARGV.size < 1
+  puts "I need a url to add to InstantPaper"
+end
+
+ARGV.each do |url|
+  print "Submitting '#{url}' #{opthash['title'].nil? ? "" : "with title '#{opthash['title']}'"} ... "
+  result = rp.add(url,opthash['title'])
+
+  puts result ? "Successful." : "Failed."
+  puts "Error: #{rp.error}" unless result
+end
