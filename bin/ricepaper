@@ -14,6 +14,7 @@ options = OptionParser.new do |opts|
   opts.on("-p", "--password [PASS]", "Password") { |opt| opthash['password'] = opt }
   opts.on("-a", "--authenticate", "Only attempt to authenticate to Instapaper") { |opt| opthash['authenticate'] = opt }
   opts.on("-t", "--title [TITLE]", "Optional title for instantpaper entry") { |opt| opthash['title'] = opt }
+  opts.on("-d", "--description [DESC]", "Optional description for the article") { |opt| opthash['desc'] = opt }
 end
 
 options.parse!(ARGV)
@@ -33,8 +34,14 @@ if ARGV.size < 1
 end
 
 ARGV.each do |url|
-  print "Submitting '#{url}' #{opthash['title'].nil? ? "" : "with title '#{opthash['title']}'"} ... "
-  result = rp.add(url,opthash['title'])
+  if (!opthash['desc'].nil?)
+    print "Submitting '#{url}' #{opthash['title'].nil? ? "" : "with title '#{opthash['title']}'"}"
+    print ", description '#{opthash['desc']}' ... "
+  else
+    print "Submitting '#{url}' #{opthash['title'].nil? ? "" : "with title '#{opthash['title']}'"} ... "
+  end
+
+  result = rp.add(url,opthash['title'], opthash['desc'])
 
   puts result ? "Successful." : "Failed."
   puts "Error: #{rp.error}" unless result

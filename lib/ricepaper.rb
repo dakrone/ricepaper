@@ -46,13 +46,23 @@ class RicePaper
 
   # Add a url to instapaper, given a url and an optional
   # title; if no title is given, auto-title by instapaper
-  def add(url, title=nil)
-    result = RestClient.post @apiurl + "add",
-      :username     => @username,
-      :password     => @password,
-      :url          => url,
-      :title        => title,
-      :"auto-title" => title.nil? ? "1" : "0"
+  def add(url, title=nil, description=nil)
+    if (description.nil?)
+      result = RestClient.post @apiurl + "add",
+        :username     => @username,
+        :password     => @password,
+        :url          => url,
+        :title        => title,
+        :"auto-title" => title.nil? ? "1" : "0"
+    else
+      result = RestClient.post @apiurl + "add",
+        :username     => @username,
+        :password     => @password,
+        :url          => url,
+        :title        => title,
+        :"auto-title" => title.nil? ? "1" : "0",
+        :selection    => description
+    end
   rescue RestClient::RequestFailed
     handle_error($!)
     return false
