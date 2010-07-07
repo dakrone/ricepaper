@@ -24,17 +24,12 @@ class RicePaper
   # Handle Errors - sets the error code appropriately
   # so that it can be reported
   def handle_error(err)
-    if err.to_s == "Forbidden"
-      @error = "Invalid username or password"
-    else
-      result = /(\d+)/.match(err.to_s)[1]
-      @error = case result
-                  when "400" then "Bad Request"
-                  when "403" then "Invalid username or password"
-                  when "500" then "There was a server error. Please try again later."
-                  else "An unknown error occured"
-                end
-    end
+    @error = case err.http_code
+             when 400 then "Bad Request"
+             when 403 then "Invalid username or password"
+             when 500 then "There was a server error. Please try again later."
+             else "An unknown error occured"
+             end
   end
 
   # Authenticate with instapaper, returning true if auth
